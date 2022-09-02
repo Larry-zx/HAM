@@ -54,14 +54,10 @@ class SpatialAttention(nn.Module):
 
     def get_im_subim_channels(self, C_im, M):
         _, topk = torch.topk(M, dim=1, k=C_im)
-        topk_ = topk.squeeze(-1).squeeze(-1)  # [B,C_im]
-        important_channels = torch.zeros_like(M.squeeze(-1).squeeze(-1))
-        subimportant_channels = torch.ones_like(M.squeeze(-1).squeeze(-1))
-        for i in range(M.shape[0]):
-            important_channels[i][topk_[i]] = 1
-            subimportant_channels[i][topk_[i]] = 0
-        important_channels = important_channels.unsqueeze(-1).unsqueeze(-1)
-        subimportant_channels = subimportant_channels.unsqueeze(-1).unsqueeze(-1)
+        important_channels = torch.zeros_like(M)
+        subimportant_channels = torch.ones_like(M)
+        important_channels = important_channels.scatter(1, topk, 1)
+        subimportant_channels = subimportant_channels.scatter(1, topk, 0)
         return important_channels, subimportant_channels
 
     def get_features(self, im_channels, subim_channels, channel_refined_feature):
@@ -94,7 +90,7 @@ class SpatialAttention(nn.Module):
 
 
 class ResBlock_HAM(nn.Module):
-    def __init__(self,Channel_nums):
+    def __init__(self, Channel_nums):
         super(ResBlock_HAM, self).__init__()
         self.channel = Channel_nums
         self.ChannelAttention = ChannelAttention(self.channel)
@@ -110,3 +106,7 @@ class ResBlock_HAM(nn.Module):
         return out
 
 
+if __name__ == '__main__':
+    ham = ResBlock_HAM(Channel_nums=3)
+    features = torch.randn([2, 3, 12, 12])
+    res = ham(features)
